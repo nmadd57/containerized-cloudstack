@@ -55,7 +55,5 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          # CloudStack build is memory-intensive; ensure enough shm
-          shm-size: 2g
         env:
           FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
