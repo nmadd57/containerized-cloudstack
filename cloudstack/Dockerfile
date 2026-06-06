@@ -26,23 +26,22 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # ── clone & build ─────────────────────────────────────────────────────────────
-# shallow clone; build management server (no simulator, no systemvm templates)
+# shallow clone; build with the same flags as upstream to avoid needing
+# proprietary VMware SDK jars (vmware-vim25/pbm are not in public repos).
+# The simulator profile replaces VMware with mock implementations at compile
+# time; jetty:run at runtime is started WITHOUT -Dsimulator so the server
+# behaves as a real management plane.
 RUN git clone --depth=1 --branch "${CLOUDSTACK_BRANCH}" \
         https://github.com/apache/cloudstack.git "${CLOUDSTACK_HOME}"
 
 RUN cd "${CLOUDSTACK_HOME}" \
     && mvn -T 4 \
         -Dnoredist \
-        -Dsimulator=false \
-        -P developer \
+        -Dsimulator \
+        -P developer,systemvm \
         -DskipTests \
         -q \
         install
-
-# build the UI (Vue.js → served via jetty as part of the WAR)
-RUN cd "${CLOUDSTACK_HOME}/ui" \
-    && npm install --legacy-peer-deps \
-    && npm run build
 
 # ── supervisord config ────────────────────────────────────────────────────────
 COPY supervisord.conf /etc/supervisor/conf.d/cloudstack.conf
