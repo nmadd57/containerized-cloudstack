@@ -1,4 +1,4 @@
-FROM ubuntu:22.04
+FROM ubuntu:24.04
 # Apache CloudStack management server installed from the official package repo.
 # No source build; image builds in ~2 minutes instead of 45.
 # External MariaDB required.
@@ -14,7 +14,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && curl -fsSL http://download.cloudstack.org/release.asc \
         | gpg --dearmor -o /etc/apt/keyrings/cloudstack.gpg \
     && echo "deb [signed-by=/etc/apt/keyrings/cloudstack.gpg] \
-        http://download.cloudstack.org/ubuntu jammy ${CS_VERSION}" \
+        http://download.cloudstack.org/ubuntu noble ${CS_VERSION}" \
         > /etc/apt/sources.list.d/cloudstack.list \
     && apt-get update \
     && apt-get install -y --no-install-recommends cloudstack-management \
