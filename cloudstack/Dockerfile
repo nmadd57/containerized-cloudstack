@@ -1,4 +1,4 @@
-FROM ubuntu:22.04
+FROM ubuntu:26.04
 # Apache CloudStack management server, built from the main branch.
 # External MariaDB is required; this image does not bundle a database.
 
