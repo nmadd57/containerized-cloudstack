@@ -8,6 +8,9 @@ DB_USER="${DB_USER:-cloud}"
 DB_PASSWORD="${DB_PASSWORD:?DB_PASSWORD is required}"
 DB_NAME="${DB_NAME:-cloud}"
 
+# ── runtime directories ───────────────────────────────────────────────────────
+mkdir -p /var/log/cloudstack/management /var/run /etc/cloudstack/management
+
 # ── wait for MariaDB ──────────────────────────────────────────────────────────
 echo "Waiting for MariaDB at ${DB_HOST}:${DB_PORT}..."
 until mysqladmin ping -h "${DB_HOST}" -P "${DB_PORT}" \
@@ -16,33 +19,7 @@ until mysqladmin ping -h "${DB_HOST}" -P "${DB_PORT}" \
 done
 echo "MariaDB ready."
 
-# ── write db.properties ───────────────────────────────────────────────────────
-mkdir -p /etc/cloudstack/management
-cat > /etc/cloudstack/management/db.properties <<EOF
-db.cloud.username=${DB_USER}
-db.cloud.password=${DB_PASSWORD}
-db.cloud.host=${DB_HOST}
-db.cloud.port=${DB_PORT}
-db.cloud.name=${DB_NAME}
-db.cloud.driver=com.mysql.jdbc.Driver
-db.cloud.url=jdbc:mysql://${DB_HOST}:${DB_PORT}/${DB_NAME}?sessionVariables=sql_mode='STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION,ERROR_FOR_DIVISION_BY_ZERO,NO_ZERO_DATE,NO_ZERO_IN_DATE,NO_AUTO_CREATE_USER'&autoReconnect=true
-
-db.usage.username=${DB_USER}
-db.usage.password=${DB_PASSWORD}
-db.usage.host=${DB_HOST}
-db.usage.port=${DB_PORT}
-db.usage.name=cloud_usage
-db.usage.driver=com.mysql.jdbc.Driver
-
-db.simulator.username=${DB_USER}
-db.simulator.password=${DB_PASSWORD}
-db.simulator.host=${DB_HOST}
-db.simulator.port=${DB_PORT}
-db.simulator.name=${DB_NAME}
-db.simulator.driver=com.mysql.jdbc.Driver
-EOF
-
-# ── first-run schema deployment ───────────────────────────────────────────────
+# ── first-run: deploy schema and configure management server ──────────────────
 DB_EXISTS=$(mysql -h "${DB_HOST}" -P "${DB_PORT}" \
     -u root -p"${DB_ROOT_PASSWORD}" \
     -sse "SELECT COUNT(*) FROM information_schema.SCHEMATA WHERE SCHEMA_NAME='${DB_NAME}';" \
@@ -50,12 +27,25 @@ DB_EXISTS=$(mysql -h "${DB_HOST}" -P "${DB_PORT}" \
 
 if [ "${DB_EXISTS}" = "0" ]; then
     echo "Deploying CloudStack database schema..."
-    cloud-setup-databases "${DB_USER}:${DB_PASSWORD}@${DB_HOST}" \
+    cloudstack-setup-databases \
+        "${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}" \
         --deploy-as=root:"${DB_ROOT_PASSWORD}"
-    cloud-setup-management
-    echo "Schema deployment complete."
+
+    echo "Configuring management server..."
+    cloudstack-setup-management --no-start
+
+    echo "First-run setup complete."
 fi
 
 # ── start management server ───────────────────────────────────────────────────
+# Source the env file that defines JAVA_OPTS, CLASSPATH, and BOOTSTRAP_CLASS
+# then exec Java as PID 1 so Docker signals are handled correctly.
 echo "Starting CloudStack management server..."
-exec /usr/share/cloudstack-management/bin/catalina.sh run
+# shellcheck disable=SC1091
+. /etc/default/cloudstack-management
+
+cd /var/log/cloudstack/management
+exec /usr/bin/java \
+    ${JAVA_OPTS} \
+    -cp "${CLASSPATH}" \
+    ${BOOTSTRAP_CLASS}
