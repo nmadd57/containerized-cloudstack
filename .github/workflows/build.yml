@@ -35,6 +35,15 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Resolve current OIDC plugin release
+        id: oidc
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="$(gh release view --repo nmadd57/cloudstack-oidc-plugin --json tagName -q .tagName)"
+          echo "tag=${TAG}" >> "${GITHUB_OUTPUT}"
+
       - name: Generate tags
         id: meta
         uses: docker/metadata-action@80c7e94dd9b9319bd5eb7a0e0fe9291e23a2a2e9 # v6
@@ -51,6 +60,8 @@ jobs:
         with:
           context: ./cloudstack
           file: ./cloudstack/Dockerfile
+          build-args: |
+            OIDC_PLUGIN_RELEASE=${{ steps.oidc.outputs.tag }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

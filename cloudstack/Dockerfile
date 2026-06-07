@@ -6,6 +6,13 @@ FROM ubuntu:24.04
 ARG DEBIAN_FRONTEND=noninteractive
 ARG CS_VERSION=4.22
 ARG OIDC_PLUGIN_REPO=nmadd57/cloudstack-oidc-plugin
+# Identifies the plugin release this build should fetch - its only job is to
+# change Docker's cache key for the RUN below whenever a new release is
+# published. Without it, the curl command's text never changes between builds,
+# so the build cache happily serves the OLD jar bytes forever even though
+# "latest" now points somewhere else (the workflow resolves this to the
+# current release's tag name before invoking the build).
+ARG OIDC_PLUGIN_RELEASE=latest
 
 ENV CLOUDSTACK_HOME=/usr/share/cloudstack-management
 
@@ -30,7 +37,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # currently flagged "latest" - it follows that flag rather than a tag name, so
 # it keeps working even though each build is tagged uniquely (see the plugin's
 # own workflow for why: a moving tag breaks any clone that already fetched it).
-RUN curl -fsSL \
+# (OIDC_PLUGIN_RELEASE is echoed only so its value enters this layer's cache
+# key - see the ARG comment above for why that's needed.)
+RUN echo "Fetching OIDC plugin release: ${OIDC_PLUGIN_RELEASE}" && curl -fsSL \
         "https://github.com/${OIDC_PLUGIN_REPO}/releases/latest/download/cloudstack-oidc-plugin.jar" \
         -o "${CLOUDSTACK_HOME}/lib/cloudstack-oidc-plugin.jar"
 
