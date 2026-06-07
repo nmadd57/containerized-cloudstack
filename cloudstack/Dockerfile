@@ -5,6 +5,8 @@ FROM ubuntu:24.04
 
 ARG DEBIAN_FRONTEND=noninteractive
 ARG CS_VERSION=4.22
+ARG OIDC_PLUGIN_REPO=nmadd57/cloudstack-oidc-plugin
+ARG OIDC_PLUGIN_TAG=latest
 
 ENV CLOUDSTACK_HOME=/usr/share/cloudstack-management
 
@@ -19,6 +21,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get update \
     && apt-get install -y --no-install-recommends cloudstack-management \
     && rm -rf /var/lib/apt/lists/*
+
+# ── generic OIDC auth plugin ──────────────────────────────────────────────────
+# Adds an "oidc" provider alongside the built-in google/github ones. It's a
+# plain jar dropped on the management server's classpath: CloudStack's Spring
+# module loader merges every META-INF/cloudstack/oauth2/*.xml it finds into a
+# single module context, so no source rebuild of CloudStack is needed.
+RUN curl -fsSL \
+        "https://github.com/${OIDC_PLUGIN_REPO}/releases/download/${OIDC_PLUGIN_TAG}/cloudstack-oidc-plugin.jar" \
+        -o "${CLOUDSTACK_HOME}/lib/cloudstack-oidc-plugin.jar"
 
 # ── entrypoint ────────────────────────────────────────────────────────────────
 COPY entrypoint.sh /entrypoint.sh
