@@ -4,7 +4,7 @@ FROM ubuntu:24.04
 # External MariaDB required.
 
 ARG DEBIAN_FRONTEND=noninteractive
-ARG CS_VERSION=4.22
+ARG CS_VERSION=4.23
 ARG OIDC_PLUGIN_REPO=nmadd57/cloudstack-oidc-plugin
 # Identifies the plugin release this build should fetch - its only job is to
 # change Docker's cache key for the RUN below whenever a new release is
